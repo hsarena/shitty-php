@@ -44,7 +44,7 @@ jobs:
       - run: 
           name: Code Coverage
           command: bash <(curl -s https://codecov.io/bash)
-
+      - setup_remote_docker
       - run:
           name: Build Docker Image
           command: |
