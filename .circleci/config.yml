@@ -44,3 +44,12 @@ jobs:
       - run: 
           name: Code Coverage
           command: bash <(curl -s https://codecov.io/bash)
+
+      - run:
+          name: Build Docker Image
+          command: |
+            export TAG=0.1.${CIRCLE_BUILD_NUM}
+            export IMAGE_NAME=hsarena/shitty-app:$TAG
+            docker build -t $IMAGE_NAME  .
+            docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+            docker push $IMAGE_NAME
