@@ -10,7 +10,7 @@ jobs:
       - checkout
 
         #      - run: sudo apt update # PHP CircleCI 2.0 Configuration File# PHP CircleCI 2.0 Configuration File sudo apt install zlib1g-dev libsqlite3-dev
-        #      - run: sudo docker-php-ext-install zip
+        #      - run: docker-php-ext-install zip
       #- persist_to_workspace:
       #    root: /var
       #    paths:
@@ -22,17 +22,13 @@ jobs:
             - v1-dependencies-{{ checksum "composer.json" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
-      #- run: echo $DOTENV | base64 -d > .env.testing
-      #- run: echo ./.env.testing
+
       - run: composer install --ignore-platform-reqs --no-interaction --no-plugins --no-scripts --prefer-dist
 
       - save_cache:
           key: v1-dependencies-{{ checksum "composer.json" }}
           paths:
             - ./vendor
-      
-      # prepare the database
-      #- run: touch storage/testing.sqlite
       - run: 
           name: Start 
           command: php artisan migrate --env=testing --database=sqlite --force
@@ -53,3 +49,18 @@ jobs:
             docker build -t $IMAGE_NAME  .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
             docker push $IMAGE_NAME
+      - run:
+          name: Install Kubectl
+          command: |
+            set -x
+            sudo apt-get update && sudo apt-get install -y sudo apt-transport-https ca-certificates
+            #curl -s https://packages.cloud.google.com/sudo apt/doc/sudo apt-key.gpg | sudo apt-key add -
+            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get  update
+            sudo apt-get install  --allow-unauthenticated -y kubectl
+      - run:
+          name: Deploy to K8S
+          command: |
+            echo ${KUBECONFIG}
+            echo -n ${KUBECONFIG} | base64 -d > kubeconfig.yml
+            kubectl --kubeconfig=kubeconfig.yml --namespace=rc set image deployment/main-app main-app=kaarbon/main-repo:main-app-latest
