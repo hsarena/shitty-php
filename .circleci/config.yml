@@ -9,13 +9,9 @@ jobs:
     steps:
       - checkout
 
-        #      - run: sudo apt update # PHP CircleCI 2.0 Configuration File# PHP CircleCI 2.0 Configuration File sudo apt install zlib1g-dev libsqlite3-dev
-        #      - run: docker-php-ext-install zip
-      #- persist_to_workspace:
-      #    root: /var
-      #    paths:
-      #      - www/
-      # Download and cache dependencies
+      - run: sudo docker-php-ext-install -j$(nproc) zip mbstring pdo pdo_mysql pcntl bcmath
+      - run: sudo docker-php-ext-configure bcmath --enable-bcmath
+
       - restore_cache:
           keys:
             # "composer.lock" can be used if it is committed to the repo
@@ -49,18 +45,27 @@ jobs:
             docker build -t $IMAGE_NAME  .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
             docker push $IMAGE_NAME
+      - restore_cache:
+          keys:
+            - kubectl-bin
       - run:
           name: Install Kubectl
           command: |
             set -x
-            sudo apt-get update && sudo apt-get install -y sudo apt-transport-https ca-certificates
-            #curl -s https://packages.cloud.google.com/sudo apt/doc/sudo apt-key.gpg | sudo apt-key add -
-            echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
-            sudo apt-get  update
-            sudo apt-get install  --allow-unauthenticated -y kubectl
+            curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.16.0/bin/linux/amd64/kubectl
+            sudo chmod +x ./kubectl
+            #sudo apt-get update && sudo apt-get install -y sudo apt-transport-https ca-certificates
+            ##curl -s https://packages.cloud.google.com/sudo apt/doc/sudo apt-key.gpg | sudo apt-key add -
+            #echo "deb https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            #sudo apt-get  update
+            #sudo apt-get install  --allow-unauthenticated -y kubectl
+      - save_cache:
+          key: kubectl-bin
+          paths:
+            - ./kubectl
       - run:
           name: Deploy to K8S
           command: |
             echo ${KUBECONFIG}
             echo -n ${KUBECONFIG} | base64 -d > kubeconfig.yml
-            kubectl --kubeconfig=kubeconfig.yml --namespace=rc set image deployment/main-app main-app=kaarbon/main-repo:main-app-latest
+            ./kubectl --kubeconfig=kubeconfig.yml --namespace=rc set image deployment/main-app main-app=kaarbon/main-repo:main-app-latest
